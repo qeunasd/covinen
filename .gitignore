@@ -1,4 +1,5 @@
 # exclude
 .env
+schema.sql
 /node_modules
 /tmp

@@ -28,6 +28,7 @@ func NewServer(
 }
 
 func (s *Server) Run() error {
+	s.Routes()
 	server := http.Server{
 		Addr: ":8080", Handler: s.router,
 	}

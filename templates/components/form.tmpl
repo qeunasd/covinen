@@ -1,22 +1,28 @@
 <div id="form-container">
-    <form hx-post="/kategori/tambah" hx-target="#form-container" hx-swap="innerHTML">
+    <form hx-post="/category/add" hx-target="#form-container" hx-swap="innerHTML">
         <div>
             <label for="kode_kategori">Kode</label>
-            {{ if and .Data.Error (index .Data.Error "Kode") }}
-            <span class="error">{{ index .Data.Error "Kode" }}</span>
+            {{ if .Errors }}
+            {{ if index .Errors "Kode" }}
+            <span class="error">{{ index .Errors "Kode" }}</span>
             {{ end }}
-            <input type="text" id="kode_kategori" name="kode_kategori" value="{{ .Data.KodeKategori }}">
+            {{ end }}
+
+            <input type="text" id="kode_kategori" name="kode_kategori" value="{{ .FormKode }}">
         </div>
         <div>
             <label for="nama_kategori">Nama</label>
-            {{ if and .Data.Error (index .Data.Error "Nama") }}
-            <span class="error">{{ index .Data.Error "Nama" }}</span>
+            {{ if .Errors }}
+            {{ if index .Errors "Nama" }}
+            <span class="error">{{ index .Errors "Nama" }}</span>
             {{ end }}
-            <input type="text" id="nama_kategori" name="nama_kategori" value="{{ .Data.NamaKategori }}">
+            {{ end }}
+
+            <input type="text" id="nama_kategori" name="nama_kategori" value="{{ .FormNama }}">
         </div>
         <div class="form-actions">
             <button type="submit">Tambah</button>
-            <a href="/kategori" class="button secondary">Kembali</a>
+            <a href="/category" class="button secondary">Kembali</a>
         </div>
     </form>
 </div>

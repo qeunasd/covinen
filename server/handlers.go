@@ -20,7 +20,7 @@ func (s Server) ViewAddCategoryHandler() http.HandlerFunc {
 	}
 }
 
-func (s Server) AddCategoryHandler() http.HandlerFunc {
+func (s *Server) AddCategoryHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			log.Printf("parsing form: %s", err)
@@ -44,9 +44,14 @@ func (s Server) AddCategoryHandler() http.HandlerFunc {
 			}
 
 			if r.Header.Get("HX-Request") == "true" {
-				s.RenderTemplate(w, "components/form.tmpl", map[string]any{
+				err := s.RenderTemplate(w, "components/form.tmpl", map[string]any{
 					"FormKode": code, "FormNama": name, "Errors": werr,
 				})
+				if err != nil {
+					log.Printf("rendering components: %s", err)
+					http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					return
+				}
 			}
 			return
 		}

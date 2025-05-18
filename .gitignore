@@ -1,0 +1,4 @@
+# exclude
+.env
+/node_modules
+/tmp

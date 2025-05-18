@@ -1,0 +1,22 @@
+<div id="form-container">
+    <form hx-post="/kategori/tambah" hx-target="#form-container" hx-swap="innerHTML">
+        <div>
+            <label for="kode_kategori">Kode</label>
+            {{ if and .Data.Error (index .Data.Error "Kode") }}
+            <span class="error">{{ index .Data.Error "Kode" }}</span>
+            {{ end }}
+            <input type="text" id="kode_kategori" name="kode_kategori" value="{{ .Data.KodeKategori }}">
+        </div>
+        <div>
+            <label for="nama_kategori">Nama</label>
+            {{ if and .Data.Error (index .Data.Error "Nama") }}
+            <span class="error">{{ index .Data.Error "Nama" }}</span>
+            {{ end }}
+            <input type="text" id="nama_kategori" name="nama_kategori" value="{{ .Data.NamaKategori }}">
+        </div>
+        <div class="form-actions">
+            <button type="submit">Tambah</button>
+            <a href="/kategori" class="button secondary">Kembali</a>
+        </div>
+    </form>
+</div>

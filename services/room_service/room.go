@@ -1,4 +1,4 @@
-package entity
+package room_service
 
 type Room struct {
 }

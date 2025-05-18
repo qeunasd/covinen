@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
-	cs "github.com/qeunasd/coniven/services/category_service"
+	"github.com/qeunasd/coniven/entity"
 )
 
 type Storage struct {
@@ -25,7 +25,7 @@ func (s *Storage) DeleteCategory(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Storage) UpdateCategory(ctx context.Context, category cs.Category) error {
+func (s *Storage) UpdateCategory(ctx context.Context, category entity.Category) error {
 	return nil
 }
 
@@ -33,8 +33,8 @@ func (s *Storage) GetCategoriesWithFilter(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) GetCategoryById(ctx context.Context, id int) cs.Category {
-	return cs.Category{}
+func (s *Storage) GetCategoryById(ctx context.Context, id int) entity.Category {
+	return entity.Category{}
 }
 
 func (s *Storage) FindCategoryByCode(ctx context.Context, code string) (int, error) {

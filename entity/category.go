@@ -1,4 +1,4 @@
-package categoryservice
+package entity
 
 type Category struct {
 }

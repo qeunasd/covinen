@@ -1,4 +1,4 @@
-package locationservice
+package entity
 
 type Location struct {
 }

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,7 +43,7 @@ func (s *Storage) RunMigration(ctx context.Context) error {
 }
 
 func (s *Storage) FindCategoryByCode(ctx context.Context, code string) (bool, error) {
-	sql := `SELECT COUNT(id) FROM kategori WHERE code = $1`
+	sql := `SELECT COUNT(id) FROM kategori WHERE kode = $1`
 	count := 0
 
 	err := s.db.QueryRow(ctx, sql, code).Scan(&count)
@@ -50,10 +51,24 @@ func (s *Storage) FindCategoryByCode(ctx context.Context, code string) (bool, er
 		return false, fmt.Errorf("(msg): querying find category by code (err): %w", err)
 	}
 
-	return count > 1, nil
+	return count > 0, nil
 }
 
 func (s *Storage) SaveCategory(ctx context.Context, category cs.Category) error {
+	sql := `
+		INSERT INTO kategori (kode, nama, tgl_dibuat, tgl_update)
+		VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING
+	`
+
+	commandTag, err := s.db.Exec(ctx, sql, category.Kode, category.Nama, category.TglDibuat, category.TglUpdate)
+	if err != nil {
+		return fmt.Errorf("(msg): querying save category (err): %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return errors.New("failed to save category")
+	}
+
 	return nil
 }
 

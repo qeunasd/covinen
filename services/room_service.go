@@ -1,8 +1,11 @@
 package services
 
-import "github.com/qeunasd/coniven/storage"
+import (
+	"github.com/qeunasd/coniven/storage"
+)
 
 type RoomService interface {
+	// CreateRoom(ctx context.Context)
 }
 
 type roomService struct {

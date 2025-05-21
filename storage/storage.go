@@ -28,6 +28,7 @@ type LocationRepository interface {
 	SaveLocation(ctx context.Context, location entities.Location) error
 	CountTotalLocations(ctx context.Context, p utils.PaginationParams) (int, error)
 	GetLocations(ctx context.Context, p utils.PaginationParams) ([]entities.Location, error)
+	GetLocationBySlug(ctx context.Context, slug string) (entities.Location, error)
 	GetLocationById(ctx context.Context, id uuid.UUID) (entities.Location, error)
 	FindLocationByCode(ctx context.Context, code string) (bool, error)
 	GetLocationWithRooms(ctx context.Context, id uuid.UUID) (*entities.Location, error)
@@ -215,7 +216,7 @@ func (s *Storage) GetCategoriesWithFilter(ctx context.Context, p utils.Paginatio
 
 func (s *Storage) SaveLocation(ctx context.Context, location entities.Location) error {
 	sql := `
-		INSERT INTO lokasi (id, kode, nama, slug, tgl_dibuat, tgl_update) VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO lokasi (id, kode, nama, slug, tgl_dibuat, tgl_update) VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	commandTag, err := s.db.Exec(ctx, sql, location.Id, location.Kode, location.Nama, location.Slug, location.TglDibuat, location.TglUpdate)
@@ -243,7 +244,7 @@ func (s *Storage) CountTotalLocations(ctx context.Context, p utils.PaginationPar
 }
 
 func (s *Storage) GetLocations(ctx context.Context, p utils.PaginationParams) ([]entities.Location, error) {
-	sql := `SELECT id, kode, nama, jumlah_ruangan, tgl_dibuat, tgl_update FROM lokasi`
+	sql := `SELECT id, kode, nama, jumlah_ruangan, slug, tgl_dibuat, tgl_update FROM lokasi`
 	where, args := utils.BuildWhereClauses(p)
 	sort := utils.BuildSortClause(p)
 	limit := utils.BuildLimitClause(p)
@@ -270,12 +271,12 @@ func (s *Storage) FindLocationByCode(ctx context.Context, code string) (bool, er
 		return false, err
 	}
 
-	return true, nil
+	return count > 0, nil
 }
 
 func (s *Storage) GetLocationWithRooms(ctx context.Context, id uuid.UUID) (*entities.Location, error) {
 	sqlLoc := `
-		SELECT id, kode, name, jumlah_ruangan, slug, tgl_dibuat, tgl_update FROM lokasi WHERE id = $1
+		SELECT id, kode, nama, jumlah_ruangan, slug, tgl_dibuat, tgl_update FROM lokasi WHERE id = $1
 	`
 	var loc entities.Location
 
@@ -287,7 +288,7 @@ func (s *Storage) GetLocationWithRooms(ctx context.Context, id uuid.UUID) (*enti
 	}
 
 	sqlRoom := `
-		SELECT id, id_lokasi, nama, penanggung_jawab, slug, tgl_dibuat, tgl_update WHERE id_lokasi = $1
+		SELECT id, id_lokasi, nama, penanggung_jawab, slug, tgl_dibuat, tgl_update FROM ruangan WHERE id_lokasi = $1
 	`
 
 	rows, err := s.db.Query(ctx, sqlRoom, loc.Id)
@@ -308,6 +309,23 @@ func (s *Storage) GetLocationWithRooms(ctx context.Context, id uuid.UUID) (*enti
 	loc.Ruangan = rooms
 
 	return &loc, nil
+}
+
+func (s *Storage) GetLocationBySlug(ctx context.Context, slug string) (entities.Location, error) {
+	sql := `
+		SELECT id, kode, nama, jumlah_ruangan, slug, tgl_dibuat, tgl_update FROM lokasi WHERE slug = $1
+	`
+	var loc entities.Location
+
+	err := s.db.QueryRow(ctx, sql, slug).Scan(&loc.Id, &loc.Kode, &loc.Nama, &loc.JumlahRuangan, &loc.Slug, &loc.TglDibuat, &loc.TglUpdate)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return entities.Location{}, errors.New("not found")
+		}
+		return entities.Location{}, err
+	}
+
+	return loc, nil
 }
 
 func (s *Storage) GetLocationById(ctx context.Context, id uuid.UUID) (entities.Location, error) {
@@ -343,7 +361,7 @@ func (s *Storage) DeleteLocation(ctx context.Context, id uuid.UUID) error {
 }
 
 func (s *Storage) UpdateLocation(ctx context.Context, loc entities.Location) error {
-	sql := `UPDATE kategori SET kode = $1, nama = $2, slug = $3 WHERE id = $4`
+	sql := `UPDATE lokasi SET kode = $1, nama = $2, slug = $3 WHERE id = $4`
 
 	commandTag, err := s.db.Exec(ctx, sql, loc.Kode, loc.Nama, loc.Slug, loc.Id)
 	if err != nil {

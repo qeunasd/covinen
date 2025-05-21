@@ -13,11 +13,13 @@ import (
 )
 
 type LocationService interface {
-	GetLocations(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error)
+	GetLocationsWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error)
+	GetTotalLocations(ctx context.Context) (int, error)
 	CreateLocation(ctx context.Context, name, code string) error
-	EditLocation(ctx context.Context, id, name string, code string) error
+	EditLocation(ctx context.Context, slug, name, code string) error
 	DeleteLocation(ctx context.Context, id string) error
-	ViewDetailLocation(ctx context.Context, id string) (*entities.Location, error)
+	GetLocationBySlug(ctx context.Context, slug string) (entities.Location, error)
+	ViewDetailLocation(ctx context.Context, slug string) (*entities.Location, error)
 }
 
 type locationService struct {
@@ -34,7 +36,7 @@ func NewLocationService(storage storage.LocationRepository) LocationService {
 	return &locationService{storage: storage}
 }
 
-func (l *locationService) GetLocations(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error) {
+func (l *locationService) GetLocationsWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error) {
 	if params.SortBy == "" || !utils.Contains(locationTableConfig.SortCols, params.SortBy) {
 		params.SortBy = locationTableConfig.DefaultSort
 	}
@@ -65,6 +67,10 @@ func (l *locationService) GetLocations(ctx context.Context, params utils.Paginat
 	}, nil
 }
 
+func (l *locationService) GetTotalLocations(ctx context.Context) (int, error) {
+	return l.storage.CountTotalLocations(ctx, utils.PaginationParams{})
+}
+
 func (l *locationService) CreateLocation(ctx context.Context, name string, code string) error {
 	loc, err := entities.NewLocation(code, name)
 	if err != nil {
@@ -87,12 +93,7 @@ func (l *locationService) CreateLocation(ctx context.Context, name string, code 
 	return nil
 }
 
-func (l *locationService) EditLocation(ctx context.Context, id, name string, code string) error {
-	resId, err := uuid.Parse(id)
-	if err != nil || id == "" {
-		return errors.New("invalid id location")
-	}
-
+func (l *locationService) EditLocation(ctx context.Context, slug, name, code string) error {
 	name = strings.TrimSpace(name)
 	code = strings.TrimSpace(code)
 
@@ -100,7 +101,7 @@ func (l *locationService) EditLocation(ctx context.Context, id, name string, cod
 		return nil
 	}
 
-	loc, err := l.storage.GetLocationById(ctx, resId)
+	loc, err := l.storage.GetLocationBySlug(ctx, slug)
 	if err != nil {
 		if err.Error() == "not found" {
 			return err
@@ -133,10 +134,14 @@ func (l *locationService) EditLocation(ctx context.Context, id, name string, cod
 	return nil
 }
 
+func (l *locationService) GetLocationBySlug(ctx context.Context, slug string) (entities.Location, error) {
+	return l.storage.GetLocationBySlug(ctx, slug)
+}
+
 func (l *locationService) DeleteLocation(ctx context.Context, id string) error {
 	resId, err := uuid.Parse(id)
-	if err != nil || id == "" {
-		return errors.New("invalid id location")
+	if err != nil {
+		return errors.New("invalid id")
 	}
 
 	loc, err := l.storage.GetLocationById(ctx, resId)
@@ -155,13 +160,8 @@ func (l *locationService) DeleteLocation(ctx context.Context, id string) error {
 	return nil
 }
 
-func (l *locationService) ViewDetailLocation(ctx context.Context, id string) (*entities.Location, error) {
-	resId, err := uuid.Parse(id)
-	if err != nil || id == "" {
-		return nil, errors.New("invalid id location")
-	}
-
-	loc, err := l.storage.GetLocationById(ctx, resId)
+func (l *locationService) ViewDetailLocation(ctx context.Context, slug string) (*entities.Location, error) {
+	loc, err := l.storage.GetLocationBySlug(ctx, slug)
 	if err != nil {
 		if err.Error() == "not found" {
 			return nil, err

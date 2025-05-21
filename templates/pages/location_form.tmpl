@@ -1,7 +1,5 @@
 <header>
     <h1 class="text-2xl">{{ .Title }}</h1>
-    <p>Ini halaman {{ if .Edit }}edit{{ else }}tambah{{ end }} kategori</p>
+    <p>Ini halaman {{ if eq .Mode "edit" }}edit{{ else }}tambah{{ end }} lokasi</p>
 </header>
-<main>
-    {{ embed "partials/location-form-partial.tmpl" . }}
-</main>
+{{ embed "partials/location-form-partial.tmpl" . }}

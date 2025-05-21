@@ -1,22 +1,22 @@
 <div id="form-container">
-    <form {{if eq .Mode "edit" }}hx-put="/location/{{ .Id }}/edit"{{ else }}hx-post="/location/add"{{ end }} hx-target="#form-container" hx-swap="innerHTML">
-        <div class="form-group">
+    <form {{if eq .Mode "edit" }}hx-put="/location/{{ .Slug }}/edit"{{ else }}hx-post="/location/add"{{ end }} hx-target="#form-container" hx-swap="innerHTML">
+        <div>
             <label for="kode_lokasi">Kode</label>
             {{ if and .Errors (index .Errors "Kode") }}
             <span class="error">{{ index .Errors "Kode" }}</span>
             {{ end }}
-            <input type="text" id="kode_lokasi" name="kode_lokasi" value="{{ .FormKode }}">
+            <input type="text" id="kode_lokasi" name="kode_lokasi" value="{{ .FormKode }}" placeholder="{{ .Loc.Kode }}">
         </div>
-        <div class="form-group">
+        <div>
             <label for="nama_lokasi">Nama</label>
             {{ if and .Errors (index .Errors "Nama") }}
             <span class="error">{{ index .Errors "Nama" }}</span>
             {{ end }}
-            <input type="text" id="nama_lokasi" name="nama_lokasi" value="{{ .FormNama }}">
+            <input type="text" id="nama_lokasi" name="nama_lokasi" value="{{ .FormNama }}" placeholder="{{ .Loc.Nama}}">
         </div>
         <div class="form-action">
-            <button type="submit">{{if eq .Edit "edit" }}Simpan{{ else }}Tambah{{ end }}</button>
-            <a href="/location" class="button secondary">Kembali</a>
+            <button type="submit">{{if eq .Mode "edit" }}Simpan{{ else }}Tambah{{ end }}</button>
+            <a href="/location">Kembali</a>
         </div>
     </form>
 </div>

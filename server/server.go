@@ -69,35 +69,6 @@ func (s *Server) RenderHTML(w http.ResponseWriter, tmpl string, data any) {
 	buf.WriteTo(w)
 }
 
-func (s *Server) handleFormError(w http.ResponseWriter, r *http.Request, partial string, err error, form CategoryForm, mode string) {
-	webError := make(map[string]string)
-
-	if val, ok := err.(utils.WebError); ok {
-		webError[val.Field] = val.Message
-	} else {
-		log.Printf("unexpected error: %s", err)
-		http.Error(w, "An unexpected error occurred", http.StatusInternalServerError)
-		return
-	}
-
-	if r.Context().Value(htmxKey).(bool) {
-		formData := map[string]any{
-			"FormKode": form.Code,
-			"FormNama": form.Name,
-			"Mode":     mode,
-			"Errors":   webError,
-		}
-
-		if mode == "edit" {
-			formData["Id"] = r.PathValue("id")
-		}
-
-		s.RenderHTML(w, partial, formData)
-	} else {
-		http.Error(w, "Validation failed", http.StatusBadRequest)
-	}
-}
-
 func (s *Server) handleWebError(w http.ResponseWriter, r *http.Request, err error, partial string, formData map[string]any) {
 	webError := make(map[string]string)
 

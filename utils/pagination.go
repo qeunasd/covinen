@@ -13,6 +13,7 @@ var listFilters = map[string]allowedFilter{
 	"dmin":   {column: "tgl_dibuat", operator: "gte"},
 	"dmax":   {column: "tgl_dibuat", operator: "lte"},
 	"status": {column: "status", operator: "in"},
+	"jr":     {column: "jumlah_ruangan", operator: "eq"},
 }
 
 type TableConfig struct {
@@ -96,6 +97,14 @@ func PaginationFromRequest(r *http.Request) PaginationParams {
 		Query:   q.Get("q"),
 		Filters: filters,
 	}
+}
+
+func FiltersToMap(filters []filter) map[string]any {
+	m := make(map[string]any)
+	for _, f := range filters {
+		m[f.field] = f.value
+	}
+	return m
 }
 
 func extractValue(op string, vals []string) any {

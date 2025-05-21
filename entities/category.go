@@ -7,6 +7,11 @@ import (
 	"github.com/qeunasd/coniven/utils"
 )
 
+type CategoryForm struct {
+	Code string `form:"kode_kategori"`
+	Name string `form:"nama_kategori"`
+}
+
 type Category struct {
 	Id        int       `db:"id"`
 	Kode      string    `db:"kode"`

@@ -1,10 +1,10 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/qeunasd/coniven/entities"
 	"github.com/qeunasd/coniven/utils"
 )
 
@@ -12,24 +12,36 @@ func (s *Server) listCategoriesHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := utils.PaginationFromRequest(r)
 
-		result, err := s.categoryService.ListCategories(r.Context(), params)
+		result, err := s.categoryService.ListCategoriesWithFilter(r.Context(), params)
 		if err != nil {
 			log.Printf("failed to list categories: %v\n", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
+		total, err := s.categoryService.GetTotalCategories(r.Context())
+		if err != nil {
+			log.Printf("failed to list categories: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		queryParams := r.URL.Query()
+		queryParams.Del("page")
+
 		data := map[string]any{
-			"Items": result.Data,
-			"Title": "kategori",
+			"Items":      result.Data,
+			"Title":      "kategori",
+			"TotalItems": total,
 			"Pg": map[string]any{
-				"Page":      result.Page,
-				"TotalPage": result.TotalPage,
-				"PerPage":   result.PerPage,
-				"TotalData": result.TotalData,
-				"Query":     params.Query,
-				"SortBy":    params.SortBy,
-				"SortDir":   params.SortDir,
+				"Page":        result.Page,
+				"TotalPage":   result.TotalPage,
+				"PerPage":     result.PerPage,
+				"TotalData":   result.TotalData,
+				"Query":       params.Query,
+				"SortBy":      params.SortBy,
+				"SortDir":     params.SortDir,
+				"QueryString": queryParams.Encode(),
 			},
 		}
 
@@ -57,7 +69,7 @@ func (s *Server) viewAddCategoryHandler() http.HandlerFunc {
 
 func (s *Server) addCategoryHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var reqForm CategoryForm
+		var reqForm entities.CategoryForm
 
 		if err := parseForm(r, &reqForm); err != nil {
 			log.Printf("error parsing form: %v\n", err)
@@ -67,8 +79,15 @@ func (s *Server) addCategoryHandler() http.HandlerFunc {
 
 		err := s.categoryService.AddNewCategory(r.Context(), reqForm.Name, reqForm.Code)
 		if err != nil {
-			s.handleFormError(w, r, "partials/category-form-partial.tmpl", err, reqForm, "create")
-			return
+			if r.Context().Value(htmxKey).(bool) {
+				formData := map[string]any{
+					"FormKode": reqForm.Code,
+					"FormNama": reqForm.Name,
+					"Mode":     "create",
+				}
+				s.handleWebError(w, r, err, "partials/category-form-partial.tmpl", formData)
+				return
+			}
 		}
 
 		w.Header().Set("HX-Redirect", "/category")
@@ -109,7 +128,7 @@ func (s *Server) editCategoryHandler() http.HandlerFunc {
 			return
 		}
 
-		var reqForm CategoryForm
+		var reqForm entities.CategoryForm
 		if err := parseForm(r, &reqForm); err != nil {
 			log.Printf("error parsing form: %v\n", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -126,7 +145,7 @@ func (s *Server) editCategoryHandler() http.HandlerFunc {
 			formData := map[string]any{
 				"FormKode": reqForm.Code,
 				"FormNama": reqForm.Name,
-				"Edit":     true,
+				"Mode":     "edit",
 				"Category": category,
 				"Id":       id,
 			}
@@ -174,23 +193,37 @@ func (s *Server) getLocationsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := utils.PaginationFromRequest(r)
 
-		result, err := s.locationService.GetLocations(r.Context(), params)
+		result, err := s.locationService.GetLocationsWithFilter(r.Context(), params)
 		if err != nil {
+			log.Printf("failed to list locations: %v\n", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
+		total, err := s.locationService.GetTotalLocations(r.Context())
+		if err != nil {
+			log.Printf("failed to get total locations: %v\n", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		queryParams := r.URL.Query()
+		queryParams.Del("page")
+
 		data := map[string]any{
-			"Items": result.Data,
-			"Title": "lokasi",
+			"Items":      result.Data,
+			"Title":      "lokasi",
+			"TotalItems": total,
 			"Pg": map[string]any{
-				"Page":      result.Page,
-				"TotalPage": result.TotalPage,
-				"PerPage":   result.PerPage,
-				"TotalData": result.TotalData,
-				"Query":     params.Query,
-				"SortBy":    params.SortBy,
-				"SortDir":   params.SortDir,
+				"Page":        result.Page,
+				"TotalPage":   result.TotalPage,
+				"PerPage":     result.PerPage,
+				"TotalData":   result.TotalData,
+				"Query":       params.Query,
+				"SortBy":      params.SortBy,
+				"SortDir":     params.SortDir,
+				"Filters":     utils.FiltersToMap(params.Filters),
+				"QueryString": queryParams.Encode(),
 			},
 		}
 
@@ -218,37 +251,26 @@ func (s *Server) viewAddLocationHandler() http.HandlerFunc {
 
 func (s *Server) addLocationHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var form LocationForm
+		var reqForm entities.LocationForm
 
-		if err := parseForm(r, &form); err != nil {
+		if err := parseForm(r, &reqForm); err != nil {
+			log.Printf("error parsing form: %v\n", err)
 			http.Error(w, "internal error", http.StatusBadRequest)
 			return
 		}
 
-		err := s.locationService.CreateLocation(r.Context(), form.Name, form.Code)
+		err := s.locationService.CreateLocation(r.Context(), reqForm.Name, reqForm.Code)
 		if err != nil {
-			webError := make(map[string]string)
-
-			if val, ok := err.(utils.WebError); ok {
-				webError[val.Field] = val.Message
-			} else {
-				log.Printf("error adding location: %s", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-
 			if r.Context().Value(htmxKey).(bool) {
-				s.RenderHTML(w, "partials/location-form-partial.tmpl", map[string]any{
-					"FormKode": form.Name,
-					"FormNama": form.Code,
+				formData := map[string]any{
+					"FormKode": reqForm.Code,
+					"FormNama": reqForm.Name,
 					"Mode":     "create",
-					"Errors":   webError,
-				})
+				}
+				s.handleWebError(w, r, err, "partials/location-form-partial.tmpl", formData)
 				return
 			}
 		}
-
-		fmt.Println("oke")
 
 		w.Header().Set("HX-Redirect", "/location")
 		w.WriteHeader(http.StatusOK)
@@ -263,10 +285,17 @@ func (s Server) viewEditLocationHandler() http.HandlerFunc {
 			return
 		}
 
+		location, fetchErr := s.locationService.GetLocationBySlug(r.Context(), slug)
+		if fetchErr != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
 		s.RenderHTML(w, "layout.tmpl", map[string]any{
 			"Page":  "pages/location_form.tmpl",
 			"Title": "form edit lokasi",
 			"Mode":  "edit",
+			"Loc":   location,
 			"Slug":  slug,
 		})
 	}
@@ -274,50 +303,39 @@ func (s Server) viewEditLocationHandler() http.HandlerFunc {
 
 func (s *Server) editLocationHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if id == "" {
-			http.Error(w, "id is required", http.StatusBadRequest)
-			return
-		}
-
 		slug := r.PathValue("slug")
 		if slug == "" {
-			http.Error(w, "id is required", http.StatusBadRequest)
+			http.Error(w, "slug is required", http.StatusBadRequest)
 			return
 		}
 
-		var form LocationForm
-		if err := parseForm(r, &form); err != nil {
+		var reqForm entities.LocationForm
+		if err := parseForm(r, &reqForm); err != nil {
 			log.Printf("parsing form: %s", err)
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		err := s.locationService.EditLocation(r.Context(), id, form.Name, form.Code)
-		if err != nil {
-			webError := make(map[string]string)
-
-			if val, ok := err.(utils.WebError); ok {
-				webError[val.Field] = val.Message
-			} else {
-				log.Printf("error editing location: %s", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
+		if err := s.locationService.EditLocation(r.Context(), slug, reqForm.Name, reqForm.Code); err != nil {
+			location, fetchErr := s.locationService.GetLocationBySlug(r.Context(), slug)
+			if fetchErr != nil {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 
-			if r.Context().Value(htmxKey).(bool) {
-				s.RenderHTML(w, "partials/location-form-partial.tmpl", map[string]any{
-					"FormKode": form.Name,
-					"FormNama": form.Code,
-					"Mode":     "edit",
-					"Errors":   webError,
-					"slug":     slug,
-				})
-				return
+			formData := map[string]any{
+				"FormKode": reqForm.Code,
+				"FormNama": reqForm.Name,
+				"Mode":     "edit",
+				"Loc":      location,
+				"Slug":     slug,
 			}
+
+			s.handleWebError(w, r, err, "partials/location-form-partial.tmpl", formData)
+			return
 		}
 
-		w.Header().Set("HX-Redirect", "/category")
+		w.Header().Set("HX-Redirect", "/location")
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -327,12 +345,6 @@ func (s Server) deleteLocationHandler() http.HandlerFunc {
 		id := r.PathValue("id")
 		if id == "" {
 			http.Error(w, "id is required", http.StatusBadRequest)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			log.Printf("parsing form: %s", err)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
@@ -352,13 +364,13 @@ func (s Server) deleteLocationHandler() http.HandlerFunc {
 
 func (s *Server) viewLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if id == "" {
-			http.Error(w, "id is required", http.StatusBadRequest)
+		slug := r.PathValue("slug")
+		if slug == "" {
+			http.Error(w, "slug is required", http.StatusBadRequest)
 			return
 		}
 
-		loc, err := s.locationService.ViewDetailLocation(r.Context(), id)
+		loc, err := s.locationService.ViewDetailLocation(r.Context(), slug)
 		if err != nil {
 			log.Printf("error getting location: %s", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -367,8 +379,8 @@ func (s *Server) viewLocation() http.HandlerFunc {
 
 		s.RenderHTML(w, "layout.tmpl", map[string]any{
 			"Page":  "pages/location_detail.tmpl",
-			"Title": "detail lokasi",
-			"Data":  loc,
+			"Title": "lokasi",
+			"Loc":   loc,
 		})
 	}
 }

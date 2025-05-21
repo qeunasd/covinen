@@ -1,5 +1,5 @@
 <div class="px-6 mx-7">
-    <form hx-get="/category" hx-target="#container" hx-swap="innerHTML">
+    <form hx-get="/category" hx-target="#container" hx-push-url="true" hx-swap="innerHTML" onsubmit="stripEmptyInputs(this)">
         <search class="flex items-center gap-6">
             <input 
                 class="px-4 py-2 border placeholder:text-gray-400 placeholder:text-sm focus:placeholder:opacity-50"
@@ -79,7 +79,7 @@
                 <tr class="hover:bg-gray-50 transition-colors text-md ">
                     <td class="px-8 py-3 whitespace-nowrap">{{ $elm.Kode }}</td>
                     <td class="px-8 py-3 whitespace-nowrap">{{ $elm.Nama }}</td>
-                    <td class="px-8 py-3 whitespace-nowrap">{{ parseTime $elm.TglDibuat }}</td>
+                    <td class="px-8 py-3 whitespace-nowrap text-center">{{ parseTime $elm.TglDibuat }}</td>
                     <td class="px-8 py-3 whitespace-nowrap font-medium text-center">
                         <a 
                             href="/category/{{ $elm.Id }}/edit" 
@@ -109,29 +109,55 @@
 </div>
 
 
-<div class="h-20 bg-white py-3">
-    <nav class="container mx-auto">
+<div class="h-20 bg-white py-3 px-6 mx-7 mt-8 flex items-center border">
+    <div class="inline-flex gap-8">
+        <p class="border text-nowrap px-3 py-1">Total Data: {{ .Pg.TotalData }}</p> 
+        <p class="border text-nowrap px-3 py-1">Total Halaman: {{ .Pg.TotalPage }}</p>
+    </div>
+
+    <nav class="container mx-auto py-1">
         {{ if gt .Pg.TotalPage 1 }}
             {{ $pages := pageRange .Pg.Page .Pg.TotalPage 5 }}
 
             <ul class="flex items-center justify-center space-x-2">
                 {{ if gt (index $pages 0) 1 }}
                     <li>
-                        <a href="?page=1" class="px-3 py-1 hover:bg-gray-100 text-lg">1</a>
+                        <a href="?page=1{{ if .Pg.QueryString }}&{{ .Pg.QueryString }}{{ end }}" 
+                            hx-get="?page=1{{ if .Pg.QueryString }}&{{ .Pg.QueryString }}{{ end }}" 
+                            hx-target="#container"
+                            hx-push-url="true" 
+                            onsubmit="stripEmptyInputs(this)"
+                            class="px-3 py-1 hover:bg-gray-100 text-lg">
+                            1
+                        </a>
                     </li>
                     <li>...</li>
                 {{ end }}
 
                 {{ range $pageNum := $pages }}
                     <li>
-                        <a href="?page={{ $pageNum }}" class="px-3 py-1 {{ if eq $pageNum $.Pg.Page }}bg-pink-500 text-white{{ else }}hover:bg-gray-100{{ end }}">{{ $pageNum }}</a>
+                        <a 
+                            href="?page={{ $pageNum }}{{ if $.Pg.QueryString }}&{{ $.Pg.QueryString }}{{ end }}" 
+                            hx-get="?page={{ $pageNum }}{{ if $.Pg.QueryString }}&{{ $.Pg.QueryString }}{{ end }}" 
+                            hx-target="#container"
+                            hx-push-url="true" 
+                            class="px-3 py-1 {{ if eq $pageNum $.Pg.Page }}bg-pink-500 text-white{{ else }}hover:bg-gray-100{{ end }}">
+                            {{ $pageNum }}
+                        </a>
                     </li>
                 {{ end }}
 
                 {{ if lt (index $pages (sub (len $pages) 1)) $.Pg.TotalPage }}
                     <li>...</li>
                     <li>
-                        <a href="?page={{ $.Pg.TotalPage }}" class="px-3 py-1 hover:bg-gray-100">{{ $.Pg.TotalPage }}</a>
+                        <a 
+                            href="?page={{ $.Pg.TotalPage }}{{ if .Pg.QueryString }}&{{ .Pg.QueryString }}{{ end }}" 
+                            hx-get="?page={{ $.Pg.TotalPage }}{{ if .Pg.QueryString }}&{{ .Pg.QueryString }}{{ end }}" 
+                            hx-target="#container"
+                            hx-push-url="true" 
+                            class="px-3 py-1 hover:bg-gray-100">
+                            {{ $.Pg.TotalPage }}
+                        </a>
                     </li>
                 {{ end }}
             </ul>

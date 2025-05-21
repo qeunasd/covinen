@@ -19,5 +19,5 @@ func (s *Server) Routes() {
 	s.router.HandleFunc("POST /location/add", s.addLocationHandler())
 	s.router.HandleFunc("GET /location/{slug}/edit", s.viewEditLocationHandler())
 	s.router.HandleFunc("PUT /location/{slug}/edit", s.editLocationHandler())
-	s.router.HandleFunc("DELETE /location/{slug}/delete", s.deleteLocationHandler())
+	s.router.HandleFunc("DELETE /location/{id}/delete", s.deleteLocationHandler())
 }

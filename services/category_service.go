@@ -16,7 +16,8 @@ import (
 type CategoryService interface {
 	AddNewCategory(ctx context.Context, name, code string) error
 	EditCategory(ctx context.Context, id, name, code string) error
-	ListCategories(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error)
+	ListCategoriesWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error)
+	GetTotalCategories(ctx context.Context) (int, error)
 	DeleteCategory(ctx context.Context, id string) error
 	GetCategoryById(ctx context.Context, id string) (entities.Category, error)
 }
@@ -35,7 +36,7 @@ func NewCategoryService(storage storage.CategoryRepository) CategoryService {
 	return &categoryService{storage: storage}
 }
 
-func (c *categoryService) ListCategories(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error) {
+func (c *categoryService) ListCategoriesWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error) {
 	if params.SortBy == "" || !utils.Contains(categoryTableConfig.SortCols, params.SortBy) {
 		params.SortBy = categoryTableConfig.DefaultSort
 	}
@@ -64,6 +65,10 @@ func (c *categoryService) ListCategories(ctx context.Context, params utils.Pagin
 		PerPage:   params.PerPage,
 		TotalPage: totalPage,
 	}, nil
+}
+
+func (c *categoryService) GetTotalCategories(ctx context.Context) (int, error) {
+	return c.storage.CountCategories(ctx, utils.PaginationParams{})
 }
 
 func (c *categoryService) AddNewCategory(ctx context.Context, name, code string) error {

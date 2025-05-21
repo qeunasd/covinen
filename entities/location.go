@@ -8,6 +8,11 @@ import (
 	"github.com/qeunasd/coniven/utils"
 )
 
+type LocationForm struct {
+	Code string `form:"kode_lokasi"`
+	Name string `form:"nama_lokasi"`
+}
+
 type Location struct {
 	Id            uuid.UUID `db:"id"`
 	Kode          string    `db:"kode"`
@@ -16,7 +21,7 @@ type Location struct {
 	Slug          string    `db:"slug"`
 	TglDibuat     time.Time `db:"tgl_dibuat"`
 	TglUpdate     time.Time `db:"tgl_update"`
-	Ruangan       []Room
+	Ruangan       []Room    `db:"-"`
 }
 
 func NewLocation(code, name string) (*Location, error) {

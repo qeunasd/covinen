@@ -1,0 +1,8 @@
+<header class="space-y-6 mb-8">
+    <h1 class="text-4xl font-bold uppercase">{{ .Title }}</h1>
+    <p>Ini halaman daftar lokasi</p>
+    <a href="/location/add" class="border-2 px-4 py-2 bg-pink-400">tambah lokasi</a>
+</header>
+<main id="container" class="space-y-6"> 
+    {{ embed "partials/location-list-partial.tmpl" . }}
+</main>

@@ -1,0 +1,143 @@
+<div class="px-6 mx-7">
+    <form hx-get="/category" hx-target="#container" hx-swap="innerHTML">
+        <search class="flex items-center gap-6">
+            <input 
+                class="px-4 py-2 border placeholder:text-gray-400 placeholder:text-sm focus:placeholder:opacity-50"
+                type="search" 
+                name="q" 
+                placeholder="cari kode atau nama"
+                autocomplete="off"
+                value="{{ .Pg.Query }}"
+            >
+            
+            <label for="perpage">Perhalaman</label>
+            <select name="perpage" id="perpage" class="border py-2.5 cursor-pointer">
+                <option value="10" {{ if eq .Pg.PerPage 10 }}selected{{ end }}>10</option>
+                <option value="50" {{ if eq .Pg.PerPage 50 }}selected{{ end }}>50</option>
+                <option value="100" {{ if eq .Pg.PerPage 100 }}selected{{ end }}>100</option>
+            </select>
+
+            <button type="submit" class="px-4 py-2 border cursor-pointer">Terapkan</button>
+            <button 
+                type="reset" 
+                hx-get="/category" 
+                hx-target="#container" 
+                hx-push-url="true" 
+                class="px-4 py-2 border cursor-pointer">
+                Reset
+            </button>
+        </search>
+    </form>
+</div>
+
+<div class="px-6 mx-7 mt-9">
+    <table class="min-w-full bg-white">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="py-2">
+                    <a 
+                    href="?sb=kode&ord={{ if eq .Pg.SortBy "kode" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                    class="px-6 py-3 text-left text-lg font-bold uppercase tracking-wider {{ if eq .Pg.SortBy "kode" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
+                    hx-get="?sb=kode&ord={{ if eq .Pg.SortBy "kode" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                    hx-target="#container"
+                    hx-swap="innerHTML">
+                        Kode
+                        {{ if eq .Pg.SortBy "kode" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
+                    </a>
+                </th>
+                <th>
+                    <a 
+                    href="?sb=nama&ord={{ if eq .Pg.SortBy "nama" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                    class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider {{ if eq .Pg.SortBy "nama" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
+                    hx-get="?sb=nama&ord={{ if eq .Pg.SortBy "nama" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                    hx-target="#container"
+                    hx-swap="innerHTML">
+                        Nama
+                        {{ if eq .Pg.SortBy "nama" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
+                    </a>
+                </th>
+                <th>
+                    <a 
+                    href="?sb=tgl_dibuat&ord={{ if eq .Pg.SortBy "tgl_dibuat" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                    class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider {{ if eq .Pg.SortBy "tgl_dibuat" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
+                    hx-get="?sb=tgl_dibuat&ord={{ if eq .Pg.SortBy "tgl_dibuat" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                    hx-target="#container"
+                    hx-swap="innerHTML">
+                        Tanggal Dibuat
+                        {{ if eq .Pg.SortBy "tgl_dibuat" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
+                    </a>
+                </th>
+                <th>
+                    <a class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider">
+                        Tindakan
+                    </a>
+                </th>
+            </tr>
+        </thead>    
+        <tbody class="divide-y divide-gray-200">
+            {{ range $idx, $elm := .Items }}
+                <tr class="hover:bg-gray-50 transition-colors text-md ">
+                    <td class="px-8 py-3 whitespace-nowrap">{{ $elm.Kode }}</td>
+                    <td class="px-8 py-3 whitespace-nowrap">{{ $elm.Nama }}</td>
+                    <td class="px-8 py-3 whitespace-nowrap">{{ parseTime $elm.TglDibuat }}</td>
+                    <td class="px-8 py-3 whitespace-nowrap font-medium text-center">
+                        <a 
+                            href="/category/{{ $elm.Id }}/edit" 
+                            class="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
+                        >
+                            Edit
+                        </a>
+                        <button 
+                            type="button"
+                            hx-delete="/category/{{ $elm.Id }}/delete"
+                            hx-confirm="yakin mau hapus {{ $elm.Nama }}?"
+                            hx-target="#container"
+                            hx-swap="innerHTML"
+                            class="text-red-600 hover:text-red-900 cursor-pointer"
+                        >
+                            Hapus
+                        </button>
+                    </td>
+                </tr>
+            {{ else }}
+                <tr>
+                    <td colspan="4" class="text-center p-9 text-md capitalize">Tidak ada data</td>
+                </tr>
+            {{ end }}
+        </tbody>
+    </table>
+</div>
+
+
+<div class="h-20 bg-white py-3">
+    <nav class="container mx-auto">
+        {{ if gt .Pg.TotalPage 1 }}
+            {{ $pages := pageRange .Pg.Page .Pg.TotalPage 5 }}
+
+            <ul class="flex items-center justify-center space-x-2">
+                {{ if gt (index $pages 0) 1 }}
+                    <li>
+                        <a href="?page=1" class="px-3 py-1 hover:bg-gray-100 text-lg">1</a>
+                    </li>
+                    <li>...</li>
+                {{ end }}
+
+                {{ range $pageNum := $pages }}
+                    <li>
+                        <a href="?page={{ $pageNum }}" class="px-3 py-1 {{ if eq $pageNum $.Pg.Page }}bg-pink-500 text-white{{ else }}hover:bg-gray-100{{ end }}">{{ $pageNum }}</a>
+                    </li>
+                {{ end }}
+
+                {{ if lt (index $pages (sub (len $pages) 1)) $.Pg.TotalPage }}
+                    <li>...</li>
+                    <li>
+                        <a href="?page={{ $.Pg.TotalPage }}" class="px-3 py-1 hover:bg-gray-100">{{ $.Pg.TotalPage }}</a>
+                    </li>
+                {{ end }}
+            </ul>
+
+        {{ end }}
+    </nav>
+</div>
+
+

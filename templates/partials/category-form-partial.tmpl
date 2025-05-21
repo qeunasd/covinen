@@ -1,0 +1,22 @@
+<div id="form-container">
+    <form {{if eq .Mode "edit" }}hx-put="/category/{{ .Id }}/edit"{{ else }}hx-post="/category/add"{{ end }} hx-target="#form-container" hx-swap="innerHTML">
+        <div class="form-group">
+            <label for="kode_kategori">Kode</label>
+            {{ if and .Errors (index .Errors "Kode") }}
+            <span class="error">{{ index .Errors "Kode" }}</span>
+            {{ end }}
+            <input type="text" id="kode_kategori" name="kode_kategori" value="{{ .FormKode }}" autocomplete="off" placeholder="{{ .Category.Kode }}">
+        </div>
+        <div class="form-group">
+            <label for="nama_kategori">Nama</label>
+            {{ if and .Errors (index .Errors "Nama") }}
+            <span class="error">{{ index .Errors "Nama" }}</span>
+            {{ end }}
+            <input type="text" id="nama_kategori" name="nama_kategori" value="{{ .FormNama }}" autocomplete="off" placeholder="{{ .Category.Nama }}">
+        </div>
+        <div class="form-action">
+            <button type="submit">{{if eq .Edit "edit" }}Simpan{{ else }}Tambah{{ end }}</button>
+            <a href="/category" class="button secondary">Kembali</a>
+        </div>
+    </form>
+</div>

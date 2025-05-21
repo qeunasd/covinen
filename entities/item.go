@@ -1,4 +1,4 @@
-package item_service
+package entities
 
 type Item struct {
 }

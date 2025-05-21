@@ -1,4 +1,4 @@
-package category_service
+package entities
 
 import (
 	"strings"

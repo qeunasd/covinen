@@ -5,14 +5,14 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/qeunasd/coniven/server"
-	"github.com/qeunasd/coniven/services/category_service"
+	"github.com/qeunasd/coniven/services"
 	"github.com/qeunasd/coniven/storage"
 )
 
@@ -34,16 +34,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := http.NewServeMux()
 	templates, err := ParseTemplate("./templates")
 	if err != nil {
 		log.Fatalf("parsing template: %s", err)
 	}
 
-	categoryService := category_service.NewCategoryService(repository)
+	categoryService := services.NewCategoryService(repository)
+	locationService := services.NewLocationService(repository)
+	roomService := services.NewRoomService(repository)
+	itemService := services.NewRoomService(repository)
 
 	log.Println("listening to server at localhost:8080")
-	srv := server.NewServer(router, templates, categoryService)
+	srv := server.NewServer(templates, categoryService, locationService, roomService, itemService)
+
 	if err := srv.Run(); err != nil {
 		log.Fatalf("error listening to server: %v", err)
 	}
@@ -60,6 +63,50 @@ func ParseTemplate(dir string) (*template.Template, error) {
 				log.Fatalf("embedding template: %s", err)
 			}
 			return template.HTML(output.String())
+		},
+		// "seq": func(start, end int) []int {
+		// 	if end < start {
+		// 		return []int{}
+		// 	}
+		// 	s := make([]int, end-start+1)
+		// 	for i := range s {
+		// 		s[i] = start + i
+		// 	}
+		// 	return s
+		// },
+		"pageRange": func(current, total, max int) []int {
+			if total <= max {
+				r := make([]int, total)
+				for i := range r {
+					r[i] = i + 1
+				}
+				return r
+			}
+
+			var pages []int
+			half := max / 2
+			start := current - half
+			end := current + half
+
+			if start < 1 {
+				start = 1
+				end = max
+			} else if end > total {
+				end = total
+				start = total - max + 1
+			}
+
+			for i := start; i <= end; i++ {
+				pages = append(pages, i)
+			}
+
+			return pages
+		},
+		"sub": func(x, y int) int {
+			return x - y
+		},
+		"parseTime": func(date time.Time) string {
+			return date.Format("02-01-2006 15:04:05")
 		},
 	})
 

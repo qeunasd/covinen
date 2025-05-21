@@ -3,4 +3,5 @@
 
 @theme {
     --font-regular: "Inconsolata", monospace;
+    --text-regular: 1.1rem;
 }

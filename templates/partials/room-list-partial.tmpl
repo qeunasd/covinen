@@ -1,18 +1,19 @@
 <div class="px-6 mx-7">
-    <form hx-get="/location" hx-target="#container" hx-push-url="true" hx-swap="innerHTML" onsubmit="stripEmptyInputs(this)">
+    <form hx-get="/room" hx-target="#container" hx-push-url="true" hx-swap="innerHTML" onsubmit="stripEmptyInputs(this)">
         <search class="flex items-center gap-6">
             <input 
                 class="px-4 py-2 border w-auto placeholder:text-gray-400 placeholder:text-base focus:placeholder:opacity-50"
                 type="search" 
                 name="q" 
-                placeholder="cari kode atau nama"
+                placeholder="Mau Cari Sesuatu.."
                 autocomplete="off"
                 value="{{ .Pg.Query }}"
             >
 
-            <label for="jr">Jumlah Ruangan</label>
-            <input type="number" name="jr" value="{{ index .Pg.Filters "jumlah_ruangan" }}" min="0" placeholder="0" class="border p-2 w-14">
-        
+            <label for="jb">Jumlah Barang</label>
+            <input type="number" name="jb" value="{{ index .Pg.Filters "jumlah_barang" }}" min="0" placeholder="0" class="border p-2 w-14">
+
+
             <label for="perpage">Perhalaman</label>
             <select name="perpage" id="perpage" class="border py-2.5 px-3 cursor-pointer">
                 <option value="10" {{ if eq .Pg.PerPage 10 }}selected{{ end }}>10</option>
@@ -23,7 +24,7 @@
             <button type="submit" class="px-4 py-2 border cursor-pointer">Terapkan</button>
             <button 
                 type="reset" 
-                hx-get="/location" 
+                hx-get="/room" 
                 hx-target="#container" 
                 hx-push-url="true" 
                 class="px-4 py-2 border cursor-pointer">
@@ -39,17 +40,6 @@
             <thead class="bg-gray-100">
                 <tr>
                     <th class="px-6 py-3 text-center"><input type="checkbox" onclick="toggleAll(this)" class="cursor-pointer"></th>
-                    <th class="py-2">
-                        <a 
-                        href="?sb=kode&ord={{ if eq .Pg.SortBy "kode" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
-                        class="px-6 py-3 text-left text-lg font-bold uppercase tracking-wider {{ if eq .Pg.SortBy "kode" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
-                        hx-get="?sb=kode&ord={{ if eq .Pg.SortBy "kode" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
-                        hx-target="#container"
-                        hx-swap="innerHTML">
-                            Kode
-                            {{ if eq .Pg.SortBy "kode" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
-                        </a>
-                    </th>
                     <th>
                         <a 
                         href="?sb=nama&ord={{ if eq .Pg.SortBy "nama" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
@@ -63,13 +53,35 @@
                     </th>
                     <th>
                         <a 
-                        href="?sb=jr&ord={{ if eq .Pg.SortBy "jr" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
-                        class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider {{ if eq .Pg.SortBy "jr" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
-                        hx-get="?sb=jr&ord={{ if eq .Pg.SortBy "jr" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                        href="?sb=pj&ord={{ if eq .Pg.SortBy "pj" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                        class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider {{ if eq .Pg.SortBy "pj" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
+                        hx-get="?sb=pj&ord={{ if eq .Pg.SortBy "pj" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
                         hx-target="#container"
                         hx-swap="innerHTML">
-                            Jumlah Ruangan
-                            {{ if eq .Pg.SortBy "jr" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
+                            Penanggung Jawab
+                            {{ if eq .Pg.SortBy "pj" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
+                        </a>
+                    </th>
+                    <th>
+                        <a 
+                        href="?sb=jb&ord={{ if eq .Pg.SortBy "jb" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                        class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider {{ if eq .Pg.SortBy "jb" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
+                        hx-get="?sb=jb&ord={{ if eq .Pg.SortBy "jb" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                        hx-target="#container"
+                        hx-swap="innerHTML">
+                            Jumlah Barang
+                            {{ if eq .Pg.SortBy "jb" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
+                        </a>
+                    </th>
+                    <th>
+                        <a 
+                        href="?sb=lk&ord={{ if eq .Pg.SortBy "lk" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                        class="px-6 py-3 text-left text-lg font-bold text-gray-700 uppercase tracking-wider {{ if eq .Pg.SortBy "lk" }} text-green-500 {{ else }} text-gray-700  {{ end }}"
+                        hx-get="?sb=lk&ord={{ if eq .Pg.SortBy "lk" }}{{ if eq .Pg.SortDir "asc" }}desc{{ else }}asc{{ end }}{{ else }}asc{{ end }}"
+                        hx-target="#container"
+                        hx-swap="innerHTML">
+                            Lokasi
+                            {{ if eq .Pg.SortBy "lk" }}{{ if eq .Pg.SortDir "asc" }}<{{ else }}>{{ end }}{{ else }}{{ end }}
                         </a>
                     </th>
                     <th>
@@ -94,26 +106,27 @@
                 {{ range $idx, $elm := .Items }}
                     <tr class="hover:bg-gray-50 transition-colors text-md">
                         <td class="px-8 py-3 text-center"><input type="checkbox" name="ids" value="{{ $elm.Id }}" class="form-checkbox cursor-pointer" onchange="toggleRowHighlight(this)"></td>
-                        <td class="px-8 py-3 whitespace-nowrap text-center">{{ $elm.Kode }}</td>
                         <td class="px-8 py-3 whitespace-nowrap">{{ $elm.Nama }}</td>
-                        <td class="px-8 py-3 whitespace-nowrap text-center">{{ if eq $elm.JumlahRuangan 0}}tidak ada ruangan{{ else }}{{ $elm.JumlahRuangan }} ruangan{{ end }}</td>
+                        <td class="px-8 py-3 whitespace-nowrap">{{ $elm.PenanggungJawab }}</td>
+                        <td class="px-8 py-3 whitespace-nowrap text-center">{{ if eq $elm.JumlahBarang 0}}tidak ada barang{{ else }}{{ $elm.JumlahRuangan }} ruangan{{ end }}</td>
+                        <td class="px-8 py-3 whitespace-nowrap">{{ $elm.Lokasi.Nama }}</td>
                         <td class="px-8 py-3 whitespace-nowrap text-center">{{ parseTime $elm.TglDibuat }}</td>
                         <td class="px-8 py-3 whitespace-nowrap font-medium text-center">
                             <a 
-                                href="/location/{{ $elm.Slug }}" 
+                                href="/room/{{ $elm.Slug }}" 
                                 class="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
                             >
                                 Lihat
                             </a>
                             <a 
-                                href="/location/{{ $elm.Slug }}/edit" 
+                                href="/room/{{ $elm.Slug }}/edit" 
                                 class="text-amber-300 hover:text-amber-400 mr-3 cursor-pointer"
                             >
                                 Edit
                             </a>
                             <button 
                                 type="button"
-                                hx-delete="/location/{{ $elm.Id }}/delete"
+                                hx-delete="/room/{{ $elm.Id }}/delete"
                                 hx-confirm="yakin mau hapus {{ $elm.Nama }}?"
                                 hx-target="#container"
                                 hx-swap="innerHTML"
@@ -125,7 +138,7 @@
                     </tr>
                 {{ else }}
                     <tr>
-                        <td colspan="5" class="text-center p-9 text-md capitalize">Tidak ada data</td>
+                        <td colspan="7" class="text-center p-9 text-lg capitalize">Tidak ada data</td>
                     </tr>
                 {{ end }}
             </tbody>
@@ -154,7 +167,7 @@
                             hx-push-url="true" 
                             class="px-3 py-1 hover:bg-gray-100 text-lg">
                             1
-                        </a>
+                        <!-- </a> -->
                     </li>
                     <li>...</li>
                 {{ end }}

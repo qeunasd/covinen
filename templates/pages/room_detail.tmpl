@@ -1,0 +1,16 @@
+<header class="space-y-6 mb-2 p-6 mx-7">
+    <h1 class="text-4xl font-bold uppercase">Detail Ruangan {{ .Loc.Nama }}</h1>
+    <p>Halaman detail ruangan beserta barang </p>
+    <a href="/room" class="border-2 px-4 py-2 bg-pink-400">kembali</a>
+</header>
+<main class="p-6 mx-7">
+    <ul>
+    {{ range $idx, $elm := .Room.Items }}
+        <li>
+            Nama: {{ $elm.Barang.Nama }} SKU: {{ $elm.Barang.SKU }} NoSeri: {{ $elm.NoSeri }} Kondisi: {{ $elm.Kondisi }} Tanggal Masuk: {{ $elm.TglDibuat }}
+        </li>
+    {{ else }}
+        <li>tidak memiliki barang</li>
+    {{ end }}
+    </ul>    
+</main>

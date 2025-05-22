@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/qeunasd/coniven/entities"
-	"github.com/qeunasd/coniven/utils"
 )
 
 type CategoryRepository interface {
@@ -18,16 +17,16 @@ type CategoryRepository interface {
 	FindCategoryByCode(ctx context.Context, code string) (bool, error)
 	GetCategoryById(ctx context.Context, id int) (entities.Category, error)
 	UpdateCategory(ctx context.Context, category entities.Category) error
-	CountCategories(ctx context.Context, p utils.PaginationParams) (int, error)
-	GetCategoriesWithFilter(ctx context.Context, p utils.PaginationParams) ([]entities.Category, error)
+	CountCategories(ctx context.Context, where string, args []interface{}) (int, error)
+	GetCategoriesWithFilter(ctx context.Context, limit, sort, where string, args []interface{}) ([]entities.Category, error)
 	FindCategoryByName(ctx context.Context, name string) (bool, error)
 	DeleteCategory(ctx context.Context, id int) error
 }
 
 type LocationRepository interface {
 	SaveLocation(ctx context.Context, location entities.Location) error
-	CountTotalLocations(ctx context.Context, p utils.PaginationParams) (int, error)
-	GetLocations(ctx context.Context, p utils.PaginationParams) ([]entities.Location, error)
+	CountTotalLocations(ctx context.Context, where string, args []interface{}) (int, error)
+	GetLocations(ctx context.Context, limit, sort, where string, args []interface{}) ([]entities.Location, error)
 	GetLocationBySlug(ctx context.Context, slug string) (entities.Location, error)
 	GetLocationById(ctx context.Context, id uuid.UUID) (entities.Location, error)
 	FindLocationByCode(ctx context.Context, code string) (bool, error)
@@ -37,7 +36,14 @@ type LocationRepository interface {
 }
 
 type RoomRepository interface {
-	CreateRoom(ctx context.Context, name, code string) error
+	CreateRoom(ctx context.Context, room entities.Room) error
+	CountRoomWithFilter(ctx context.Context, where string, args []interface{}) (int, error)
+	GetRooms(ctx context.Context, limit, sort, where string, args []interface{}) ([]entities.Room, error)
+	GetRoomBySlug(ctx context.Context, slug string) (entities.Room, error)
+	UpdateRoom(ctx context.Context, room entities.Room) error
+	GetRoomById(ctx context.Context, id uuid.UUID) (entities.Room, error)
+	DeleteRoom(ctx context.Context, id uuid.UUID) error
+	GetRoomWithItems(ctx context.Context, id uuid.UUID) (*entities.Room, error)
 }
 
 type ItemRepository interface {
@@ -74,6 +80,18 @@ func (s *Storage) RunMigration(ctx context.Context) error {
 	}
 
 	if err := createRoomTable(tx, ctx); err != nil {
+		return err
+	}
+
+	if err := createItemTable(tx, ctx); err != nil {
+		return err
+	}
+
+	if err := createItemPictureTable(tx, ctx); err != nil {
+		return err
+	}
+
+	if err := createItemUnitTable(tx, ctx); err != nil {
 		return err
 	}
 
@@ -179,9 +197,8 @@ func (s *Storage) DeleteCategory(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Storage) CountCategories(ctx context.Context, p utils.PaginationParams) (int, error) {
+func (s *Storage) CountCategories(ctx context.Context, where string, args []interface{}) (int, error) {
 	sql := `SELECT COUNT(*) FROM kategori`
-	where, args := utils.BuildWhereClauses(p)
 	total := 0
 
 	err := s.db.QueryRow(ctx, sql+where, args...).Scan(&total)
@@ -192,11 +209,8 @@ func (s *Storage) CountCategories(ctx context.Context, p utils.PaginationParams)
 	return total, nil
 }
 
-func (s *Storage) GetCategoriesWithFilter(ctx context.Context, p utils.PaginationParams) ([]entities.Category, error) {
+func (s *Storage) GetCategoriesWithFilter(ctx context.Context, limit, sort, where string, args []interface{}) ([]entities.Category, error) {
 	sql := `SELECT id, kode, nama, tgl_dibuat, tgl_update FROM kategori`
-	where, args := utils.BuildWhereClauses(p)
-	sort := utils.BuildSortClause(p)
-	limit := utils.BuildLimitClause(p)
 
 	rows, err := s.db.Query(ctx, sql+where+sort+limit, args...)
 	if err != nil {
@@ -231,9 +245,8 @@ func (s *Storage) SaveLocation(ctx context.Context, location entities.Location) 
 	return nil
 }
 
-func (s *Storage) CountTotalLocations(ctx context.Context, p utils.PaginationParams) (int, error) {
+func (s *Storage) CountTotalLocations(ctx context.Context, where string, args []interface{}) (int, error) {
 	sql := `SELECT COUNT(*) FROM lokasi`
-	where, args := utils.BuildWhereClauses(p)
 	total := -1
 
 	if err := s.db.QueryRow(ctx, sql+where, args...).Scan(&total); err != nil {
@@ -243,11 +256,8 @@ func (s *Storage) CountTotalLocations(ctx context.Context, p utils.PaginationPar
 	return total, nil
 }
 
-func (s *Storage) GetLocations(ctx context.Context, p utils.PaginationParams) ([]entities.Location, error) {
+func (s *Storage) GetLocations(ctx context.Context, limit, sort, where string, args []interface{}) ([]entities.Location, error) {
 	sql := `SELECT id, kode, nama, jumlah_ruangan, slug, tgl_dibuat, tgl_update FROM lokasi`
-	where, args := utils.BuildWhereClauses(p)
-	sort := utils.BuildSortClause(p)
-	limit := utils.BuildLimitClause(p)
 
 	rows, err := s.db.Query(ctx, sql+where+sort+limit, args...)
 	if err != nil {
@@ -377,9 +387,216 @@ func (s *Storage) UpdateLocation(ctx context.Context, loc entities.Location) err
 
 // Room Area
 
-func (s *Storage) CreateRoom(ctx context.Context, name, code string) error {
+func (s *Storage) CreateRoom(ctx context.Context, room entities.Room) error {
+	sql := `
+		INSERT INTO ruangan (id, id_lokasi, nama, penanggung_jawab, slug) 
+		VALUES ($1, $2, $3, $4, $5)
+	`
+
+	commandTag, err := s.db.Exec(ctx, sql, room.Id, room.LokasiId, room.Nama, room.PenanggungJawab, room.Slug)
+	if err != nil {
+		return fmt.Errorf("querying create room: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return errors.New("failed to create room")
+	}
+
 	return nil
 }
+
+func (s *Storage) CountRoomWithFilter(ctx context.Context, where string, args []interface{}) (int, error) {
+	sql := `SELECT COUNT(*) FROM ruangan r LEFT JOIN lokasi l ON r.id_lokasi = l.id`
+	total := -1
+
+	if err := s.db.QueryRow(ctx, sql+where, args...).Scan(&total); err != nil {
+		return 0, err
+	}
+
+	return total, nil
+}
+
+func (s *Storage) GetRooms(ctx context.Context, limit, sort, where string, args []interface{}) ([]entities.Room, error) {
+	sql := `
+		SELECT 
+			r.id, r.nama, r.penanggung_jawab, r.jumlah_barang, 
+			r.slug, r.tgl_dibuat, r.tgl_update,
+			l.id, l.kode AS kode_lokasi, l.nama, l.slug 
+		FROM ruangan r
+		LEFT JOIN lokasi l ON r.id_lokasi = l.id
+	`
+
+	rows, err := s.db.Query(ctx, sql+where+sort+limit, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rooms []entities.Room
+	for rows.Next() {
+		var r entities.Room
+		var l entities.Location
+
+		err := rows.Scan(
+			&r.Id, &r.Nama, &r.PenanggungJawab, &r.JumlahBarang,
+			&r.Slug, &r.TglDibuat, &r.TglUpdate,
+			&l.Id, &l.Kode, &l.Nama, &l.Slug,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning rows room: %w", err)
+		}
+
+		r.Lokasi = l
+		r.LokasiId = l.Id
+		rooms = append(rooms, r)
+	}
+
+	return rooms, nil
+}
+
+func (s *Storage) GetRoomBySlug(ctx context.Context, slug string) (entities.Room, error) {
+	sql := `
+		SELECT 
+			r.id, r.nama, r.penanggung_jawab, r.jumlah_barang, 
+			r.slug, r.tgl_dibuat, r.tgl_update,
+			l.id, l.kode, l.nama, l.slug 
+		FROM ruangan r
+		LEFT JOIN lokasi l ON r.id_lokasi = l.id 
+		WHERE r.slug = $1
+	`
+	var room entities.Room
+	var loc entities.Location
+
+	err := s.db.QueryRow(ctx, sql, slug).Scan(
+		&room.Id, &room.Nama, &room.PenanggungJawab,
+		&room.JumlahBarang, &room.Slug, &room.TglDibuat,
+		&room.TglUpdate, &loc.Id, &loc.Kode, &loc.Nama, &loc.Slug,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return entities.Room{}, errors.New("not found")
+		}
+		return entities.Room{}, err
+	}
+
+	room.LokasiId = loc.Id
+	room.Lokasi = loc
+
+	return room, nil
+}
+
+func (s *Storage) UpdateRoom(ctx context.Context, room entities.Room) error {
+	sql := `UPDATE ruangan SET nama = $1, penanggung_jawab = $2, id_lokasi = $3, slug = $4 WHERE id = $5`
+
+	commandTag, err := s.db.Exec(ctx, sql, room.Nama, room.PenanggungJawab, room.LokasiId, room.Slug, room.Id)
+	if err != nil {
+		return err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return errors.New("error updating room")
+	}
+
+	return nil
+}
+
+func (s *Storage) GetRoomById(ctx context.Context, id uuid.UUID) (entities.Room, error) {
+	sql := `
+		SELECT id, nama, penanggung_jawab, jumlah_barang, slug, tgl_dibuat
+		FROM ruangan WHERE id = $1
+	`
+	var room entities.Room
+
+	err := s.db.QueryRow(ctx, sql, id).Scan(
+		&room.Id, &room.Nama, &room.PenanggungJawab,
+		&room.JumlahBarang, &room.Slug, &room.TglDibuat,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return entities.Room{}, errors.New("not found")
+		}
+		return entities.Room{}, err
+	}
+
+	return room, nil
+}
+
+func (s *Storage) DeleteRoom(ctx context.Context, id uuid.UUID) error {
+	sql := `DELETE FROM ruangan where id = $1`
+
+	commandTag, err := s.db.Exec(ctx, sql, id)
+	if err != nil {
+		return fmt.Errorf("querying delete room: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return errors.New("error deleting room")
+	}
+
+	return nil
+}
+
+func (s *Storage) GetRoomWithItems(ctx context.Context, id uuid.UUID) (*entities.Room, error) {
+	sqlRoom := `
+		SELECT 
+			r.id, r.nama, r.penanggung_jawab, r.jumlah_barang,
+			r.slug, r.tgl_dibuat, r.tgl_update,
+			l.id, l.kode, l.nama
+		FROM ruangan r 
+		LEFT JOIN lokasi l ON r.id_lokasi = l.id
+		WHERE r.id = $1
+	`
+	var room entities.Room
+	var loc entities.Location
+
+	err := s.db.QueryRow(ctx, sqlRoom, id).Scan(
+		&room.Id, &room.Nama, &room.PenanggungJawab,
+		&room.JumlahBarang, &room.Slug, &room.TglDibuat,
+		&room.TglUpdate, &loc.Id, &loc.Kode, &loc.Nama,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching location: %w", err)
+	}
+
+	room.LokasiId = loc.Id
+	room.Lokasi = loc
+
+	sqlItems := `
+		SELECT
+			b.sku, b.nama, ub.id, ub.no_seri, 
+			ub.kondisi, ub.tgl_dibuat, ub.tgl_update
+		FROM unit_barang ub
+		LEFT JOIN barang b ON ub.id_barang = b.id
+		LEFT JOIN kategori k ON b.id_kategori = k.id
+		WHERE ub.id_ruangan = $1
+	`
+
+	rows, err := s.db.Query(ctx, sqlItems, room.Id)
+	if err != nil {
+		return nil, fmt.Errorf("querying fetch item: %w", err)
+	}
+	defer rows.Close()
+
+	var items []entities.ItemUnit
+	for rows.Next() {
+		var i entities.ItemUnit
+		var b entities.Item
+
+		err := rows.Scan(&b.SKU, &b.Nama, &i.Id, &i.NoSeri, &i.Kondisi, &i.TglDibuat, &i.TglUpdate)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning rows: %w", err)
+		}
+
+		i.Barang = b
+		items = append(items, i)
+	}
+
+	room.Items = items
+
+	return &room, nil
+}
+
+// Item Area
 
 func (s *Storage) CreateItem(ctx context.Context, name, code string) error {
 	return nil

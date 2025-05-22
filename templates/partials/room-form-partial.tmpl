@@ -1,0 +1,36 @@
+<div id="form-container">
+    <form {{if eq .Mode "edit" }}hx-put="/room/{{ .Slug }}/edit"{{ else }}hx-post="/room/add"{{ end }} hx-target="#form-container" hx-swap="innerHTML">
+        <div>
+            <label for="nama_ruangan">Nama</label>
+            {{ if and .Errors (index .Errors "Nama") }}
+            <span class="error">{{ index .Errors "Nama" }}</span>
+            {{ end }}
+            <input type="text" id="nama_ruangan" name="nama_ruangan" value="{{ .FormNama }}" placeholder="{{ .Room.Nama}}">
+        </div>
+        <div>
+            <label for="pj_ruangan">Penanggung Jawab</label>
+            {{ if and .Errors (index .Errors "PenanggungJawab") }}
+            <span class="error">{{ index .Errors "PenanggungJawab" }}</span>
+            {{ end }}
+            <input type="text" id="pj_ruangan" name="pj_ruangan" value="{{ .FormPJ }}" placeholder="{{ .Room.PenanggungJawab }}">
+        </div>
+        <div>
+            <label for="lokasi_ruangan">Lokasi</label>
+            {{ if and .Errors (index .Errors "Lokasi") }}
+            <span class="error">{{ index .Errors "Lokasi" }}</span>
+            {{ end }}
+            <select name="lokasi_ruangan" id="lokasi_ruangan" class="border py-2.5 px-3 cursor-pointer">
+                <option value="" {{ if not .FormLokasi }}selected{{ end }} hidden>Pilih lokasi</option>
+                {{ range $elm := .Loc }}
+                    <option value="{{ $elm.Id }}" {{ if eq $.FormLokasi ( uidStr $elm.Id) }}selected{{ end }}>{{ $elm.Nama }}</option>
+                {{ else }}
+                    <option value="" disabled>Tidak Ada Lokasi</option>
+                {{ end }}  
+            </select>
+        </div>
+        <div class="form-action">
+            <button type="submit">{{if eq .Mode "edit" }}Simpan{{ else }}Tambah{{ end }}</button>
+            <a href="/room">Kembali</a>
+        </div>
+    </form>
+</div>

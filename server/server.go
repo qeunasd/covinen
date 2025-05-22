@@ -88,6 +88,28 @@ func (s *Server) handleWebError(w http.ResponseWriter, r *http.Request, err erro
 	}
 }
 
+func buildTemplateData(r *http.Request, res utils.PaginationResult, params utils.PaginationParams, data ...any) map[string]any {
+	queryParams := r.URL.Query()
+	queryParams.Del("page")
+
+	return map[string]any{
+		"Items":      res.Data,
+		"Title":      data[1],
+		"TotalItems": data[0],
+		"Pg": map[string]any{
+			"Page":        res.Page,
+			"TotalPage":   res.TotalPage,
+			"PerPage":     res.PerPage,
+			"TotalData":   res.TotalData,
+			"Query":       params.Query,
+			"SortBy":      params.SortBy,
+			"SortDir":     params.SortDir,
+			"Filters":     utils.FiltersToMap(params.Filters),
+			"QueryString": queryParams.Encode(),
+		},
+	}
+}
+
 func withHTMX(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), htmxKey, r.Header.Get("HX-Request") == "true")

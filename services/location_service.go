@@ -13,6 +13,9 @@ import (
 )
 
 type LocationService interface {
+	// Helper UI
+	GetLocationsForUI(ctx context.Context) ([]entities.Location, error)
+	// Operation Server
 	GetLocationsWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error)
 	GetTotalLocations(ctx context.Context) (int, error)
 	CreateLocation(ctx context.Context, name, code string) error
@@ -27,23 +30,29 @@ type locationService struct {
 }
 
 var locationTableConfig = utils.TableConfig{
-	QueryCols:   []string{"nama", "kode"},
-	SortCols:    []string{"nama", "kode", "tgl_dibuat", "jumlah_ruangan"},
-	DefaultSort: "tgl_dibuat",
+	QueryCols: []string{"nama", "kode"},
+	SortCols: []utils.AllowedSort{
+		{Name: "nama", Column: "nama"},
+		{Name: "kode", Column: "kode"},
+		{Name: "dt", Column: "tgl_dibuat"},
+		{Name: "jr", Column: "jumlah_ruangan"},
+	},
+	DefaultSort: "dt",
 }
 
 func NewLocationService(storage storage.LocationRepository) LocationService {
 	return &locationService{storage: storage}
 }
 
+func (l *locationService) GetLocationsForUI(ctx context.Context) ([]entities.Location, error) {
+	return l.storage.GetLocations(ctx, "", "", "", nil)
+}
+
 func (l *locationService) GetLocationsWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error) {
-	if params.SortBy == "" || !utils.Contains(locationTableConfig.SortCols, params.SortBy) {
-		params.SortBy = locationTableConfig.DefaultSort
-	}
-
 	params.SetColumnSearch(locationTableConfig.QueryCols...)
+	where, args := utils.BuildWhereClauses(params)
 
-	total, err := l.storage.CountTotalLocations(ctx, params)
+	total, err := l.storage.CountTotalLocations(ctx, where, args)
 	if err != nil {
 		return utils.PaginationResult{}, err
 	}
@@ -53,7 +62,10 @@ func (l *locationService) GetLocationsWithFilter(ctx context.Context, params uti
 		params.Page = totalPage
 	}
 
-	locations, err := l.storage.GetLocations(ctx, params)
+	sort := utils.BuildSortClause(params, locationTableConfig)
+	limit := utils.BuildLimitClause(params)
+
+	locations, err := l.storage.GetLocations(ctx, limit, sort, where, args)
 	if err != nil {
 		return utils.PaginationResult{}, err
 	}
@@ -68,7 +80,7 @@ func (l *locationService) GetLocationsWithFilter(ctx context.Context, params uti
 }
 
 func (l *locationService) GetTotalLocations(ctx context.Context) (int, error) {
-	return l.storage.CountTotalLocations(ctx, utils.PaginationParams{})
+	return l.storage.CountTotalLocations(ctx, "", nil)
 }
 
 func (l *locationService) CreateLocation(ctx context.Context, name string, code string) error {

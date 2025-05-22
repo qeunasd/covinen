@@ -22,14 +22,18 @@ type CategoryService interface {
 	GetCategoryById(ctx context.Context, id string) (entities.Category, error)
 }
 
-var categoryTableConfig = utils.TableConfig{
-	QueryCols:   []string{"nama", "kode"},
-	SortCols:    []string{"nama", "kode", "tgl_dibuat"},
-	DefaultSort: "tgl_dibuat",
-}
-
 type categoryService struct {
 	storage storage.CategoryRepository
+}
+
+var categoryTableConfig = utils.TableConfig{
+	QueryCols: []string{"nama", "kode"},
+	SortCols: []utils.AllowedSort{
+		{Name: "nama", Column: "nama"},
+		{Name: "kode", Column: "kode"},
+		{Name: "dt", Column: "tgl_dibuat"},
+	},
+	DefaultSort: "dt",
 }
 
 func NewCategoryService(storage storage.CategoryRepository) CategoryService {
@@ -37,15 +41,12 @@ func NewCategoryService(storage storage.CategoryRepository) CategoryService {
 }
 
 func (c *categoryService) ListCategoriesWithFilter(ctx context.Context, params utils.PaginationParams) (utils.PaginationResult, error) {
-	if params.SortBy == "" || !utils.Contains(categoryTableConfig.SortCols, params.SortBy) {
-		params.SortBy = categoryTableConfig.DefaultSort
-	}
-
 	params.SetColumnSearch(categoryTableConfig.QueryCols...)
+	where, args := utils.BuildWhereClauses(params)
 
-	total, err := c.storage.CountCategories(ctx, params)
+	total, err := c.storage.CountCategories(ctx, where, args)
 	if err != nil {
-		return utils.PaginationResult{}, err
+		return utils.PaginationResult{}, fmt.Errorf("counting categories: %w", err)
 	}
 
 	totalPage := (total + params.PerPage - 1) / params.PerPage
@@ -53,9 +54,12 @@ func (c *categoryService) ListCategoriesWithFilter(ctx context.Context, params u
 		params.Page = totalPage
 	}
 
-	categories, err := c.storage.GetCategoriesWithFilter(ctx, params)
+	sort := utils.BuildSortClause(params, categoryTableConfig)
+	limit := utils.BuildLimitClause(params)
+
+	categories, err := c.storage.GetCategoriesWithFilter(ctx, limit, sort, where, args)
 	if err != nil {
-		return utils.PaginationResult{}, err
+		return utils.PaginationResult{}, fmt.Errorf("getting categories: %w", err)
 	}
 
 	return utils.PaginationResult{
@@ -68,7 +72,7 @@ func (c *categoryService) ListCategoriesWithFilter(ctx context.Context, params u
 }
 
 func (c *categoryService) GetTotalCategories(ctx context.Context) (int, error) {
-	return c.storage.CountCategories(ctx, utils.PaginationParams{})
+	return c.storage.CountCategories(ctx, "", nil)
 }
 
 func (c *categoryService) AddNewCategory(ctx context.Context, name, code string) error {

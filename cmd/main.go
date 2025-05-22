@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/qeunasd/coniven/server"
 	"github.com/qeunasd/coniven/services"
@@ -64,16 +65,6 @@ func ParseTemplate(dir string) (*template.Template, error) {
 			}
 			return template.HTML(output.String())
 		},
-		// "seq": func(start, end int) []int {
-		// 	if end < start {
-		// 		return []int{}
-		// 	}
-		// 	s := make([]int, end-start+1)
-		// 	for i := range s {
-		// 		s[i] = start + i
-		// 	}
-		// 	return s
-		// },
 		"pageRange": func(current, total, max int) []int {
 			if total <= max {
 				r := make([]int, total)
@@ -107,6 +98,9 @@ func ParseTemplate(dir string) (*template.Template, error) {
 		},
 		"parseTime": func(date time.Time) string {
 			return date.Format("02-01-2006 15:04:05")
+		},
+		"uidStr": func(id uuid.UUID) string {
+			return id.String()
 		},
 	})
 

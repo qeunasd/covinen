@@ -3,13 +3,19 @@ package utils
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
 
-var maxPageSize = 100
+var MaxPageSize = 100
 
-var listFilters = map[string]allowedFilter{
+type allowedFilter struct {
+	column   string
+	operator string
+}
+
+var filterConfigs = map[string]allowedFilter{
 	"dmin":   {column: "tgl_dibuat", operator: "gte"},
 	"dmax":   {column: "tgl_dibuat", operator: "lte"},
 	"status": {column: "status", operator: "in"},
@@ -18,26 +24,36 @@ var listFilters = map[string]allowedFilter{
 
 type TableConfig struct {
 	QueryCols   []string
-	SortCols    []string
+	SortCols    []AllowedSort
 	DefaultSort string
 }
 
-type allowedFilter struct {
-	column, operator string
+type AllowedSort struct {
+	Name   string
+	Column string
+}
+
+func (tc TableConfig) GetSortColumn(sortBy string) (string, bool) {
+	for _, sc := range tc.SortCols {
+		if sc.Name == sortBy {
+			return sc.Column, true
+		}
+	}
+	return "", false
 }
 
 type PaginationResult struct {
-	Data      any
+	Data      interface{}
 	TotalData int64
 	TotalPage int
 	Page      int
 	PerPage   int
 }
 
-type filter struct {
-	field    string
-	operator string
-	value    any
+type Filter struct {
+	Field    string
+	Operator string
+	Value    interface{}
 }
 
 type PaginationParams struct {
@@ -46,7 +62,7 @@ type PaginationParams struct {
 	SortBy    string
 	SortDir   string
 	Query     string
-	Filters   []filter
+	Filters   []Filter
 	QueryCols []string
 }
 
@@ -62,31 +78,27 @@ func (p *PaginationParams) SetColumnSearch(cols ...string) {
 	p.QueryCols = cols
 }
 
-func PaginationFromRequest(r *http.Request) PaginationParams {
+func PaginationFromRequest(r *http.Request) (PaginationParams, error) {
 	q := r.URL.Query()
 
-	page, err := strconv.Atoi(q.Get("page"))
-	if err != nil || page < 1 {
-		page = 1
+	page, err := parsePage(q.Get("page"))
+	if err != nil {
+		return PaginationParams{}, fmt.Errorf("invalid page parameter: %w", err)
 	}
 
-	perPage, err := strconv.Atoi(q.Get("perpage"))
-	if err != nil || perPage < 1 || perPage > maxPageSize {
-		perPage = 10
+	perPage, err := parsePerPage(q.Get("perpage"))
+	if err != nil {
+		return PaginationParams{}, fmt.Errorf("invalid per-page parameter: %w", err)
 	}
 
-	sortDir := q.Get("ord")
-	if sortDir != "desc" && sortDir != "asc" {
-		sortDir = "desc"
+	sortDir, err := validateSortDirection(q.Get("ord"))
+	if err != nil {
+		return PaginationParams{}, fmt.Errorf("invalid sort direction: %w", err)
 	}
 
-	var filters []filter
-	for key, val := range q {
-		if v, ok := listFilters[key]; ok {
-			filters = append(filters, filter{
-				field: v.column, operator: v.operator, value: extractValue(v.operator, val)},
-			)
-		}
+	filters, err := buildFilters(q)
+	if err != nil {
+		return PaginationParams{}, fmt.Errorf("invalid filters: %w", err)
 	}
 
 	return PaginationParams{
@@ -96,63 +108,108 @@ func PaginationFromRequest(r *http.Request) PaginationParams {
 		SortDir: sortDir,
 		Query:   q.Get("q"),
 		Filters: filters,
-	}
+	}, nil
 }
 
-func FiltersToMap(filters []filter) map[string]any {
-	m := make(map[string]any)
+func parsePage(pageStr string) (int, error) {
+	if pageStr == "" {
+		return 1, nil
+	}
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		return 0, fmt.Errorf("page must be a positive integer")
+	}
+	return page, nil
+}
+
+func parsePerPage(perPageStr string) (int, error) {
+	if perPageStr == "" {
+		return 10, nil
+	}
+	perPage, err := strconv.Atoi(perPageStr)
+	if err != nil || perPage < 1 || perPage > MaxPageSize {
+		return 0, fmt.Errorf("per-page must be between 1 and %d", MaxPageSize)
+	}
+	return perPage, nil
+}
+
+func validateSortDirection(sortDir string) (string, error) {
+	if sortDir == "" {
+		return "desc", nil
+	}
+	if sortDir != "asc" && sortDir != "desc" {
+		return "", fmt.Errorf("sort direction must be 'asc' or 'desc'")
+	}
+	return sortDir, nil
+}
+
+func buildFilters(query url.Values) ([]Filter, error) {
+	var filters []Filter
+	for key, vals := range query {
+		if cfg, ok := filterConfigs[key]; ok {
+			if len(vals) == 0 {
+				continue
+			}
+			filters = append(filters, Filter{
+				Field:    cfg.column,
+				Operator: cfg.operator,
+				Value:    extractFilterValue(cfg.operator, vals),
+			})
+		}
+	}
+	return filters, nil
+}
+
+func FiltersToMap(filters []Filter) map[string]interface{} {
+	m := make(map[string]interface{})
 	for _, f := range filters {
-		m[f.field] = f.value
+		m[f.Field] = f.Value
 	}
 	return m
 }
 
-func extractValue(op string, vals []string) any {
+func extractFilterValue(operator string, vals []string) interface{} {
 	if len(vals) == 0 {
 		return nil
 	}
-
-	if op == "in" || op == "nin" {
-		result := make([]any, len(vals))
+	if operator == "in" || operator == "nin" {
+		result := make([]interface{}, len(vals))
 		for i, v := range vals {
 			result[i] = v
 		}
 		return result
 	}
-
 	return vals[0]
 }
 
-func BuildWhereClauses(params PaginationParams) (whereClause string, arguments []any) {
+func BuildWhereClauses(params PaginationParams) (string, []interface{}) {
 	var conditions []string
+	var arguments []interface{}
 	argIndex := 1
 
-	if len(params.Filters) > 0 {
-		for _, f := range params.Filters {
-			switch f.operator {
-			case "in", "nin":
-				op := "IN"
-				if f.operator == "nin" {
-					op = "NIN"
-				}
-				values, ok := f.value.([]any)
-				if !ok || len(values) == 0 {
-					continue
-				}
-				placeholders := []string{}
-				for _, value := range values {
-					arguments = append(arguments, value)
-					placeholders = append(placeholders, fmt.Sprintf("$%d", argIndex))
-					argIndex++
-				}
-				conditions = append(conditions,
-					fmt.Sprintf("%s %s (%s)", f.field, op, strings.Join(placeholders, ", ")))
-			default:
-				arguments = append(arguments, f.value)
-				conditions = append(conditions,
-					fmt.Sprintf("%s %s $%d", f.field, mapOperator(f.operator), argIndex))
+	for _, f := range params.Filters {
+		switch f.Operator {
+		case "in", "nin":
+			values, ok := f.Value.([]any)
+			if !ok || len(values) == 0 {
+				continue
+			}
+
+			op := "IN"
+			if f.Operator == "nin" {
+				op = "NIN"
+			}
+			placeholders := make([]string, len(values))
+			for i, value := range values {
+				arguments = append(arguments, value)
+				placeholders[i] = fmt.Sprintf("$%d", argIndex)
 				argIndex++
 			}
+			conditions = append(conditions, fmt.Sprintf("%s %s (%s)", f.Field, op, strings.Join(placeholders, ", ")))
+		default:
+			arguments = append(arguments, f.Value)
+			conditions = append(conditions, fmt.Sprintf("%s %s $%d", f.Field, mapOperator(f.Operator), argIndex))
+			argIndex++
 		}
 	}
 
@@ -166,27 +223,19 @@ func BuildWhereClauses(params PaginationParams) (whereClause string, arguments [
 		conditions = append(conditions, "("+strings.Join(searchConditions, " OR ")+")")
 	}
 
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " AND ")
+	if len(conditions) == 0 {
+		return "", arguments
 	}
 
-	return
+	return " WHERE " + strings.Join(conditions, " AND "), arguments
 }
 
-func BuildSortClause(params PaginationParams) string {
-	if params.SortBy == "" {
-		return ""
+func BuildSortClause(params PaginationParams, config TableConfig) string {
+	col, ok := config.GetSortColumn(params.SortBy)
+	if !ok {
+		col, _ = config.GetSortColumn(config.DefaultSort)
 	}
-	return fmt.Sprintf(" ORDER BY %s %s", params.SortBy, strings.ToUpper(params.SortDir))
-}
-
-func Contains(slice []string, val string) bool {
-	for _, s := range slice {
-		if s == val {
-			return true
-		}
-	}
-	return false
+	return fmt.Sprintf(" ORDER BY %s %s", col, strings.ToUpper(params.SortDir))
 }
 
 func BuildLimitClause(params PaginationParams) string {

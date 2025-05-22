@@ -1,0 +1,5 @@
+<header>
+    <h1 class="text-2xl">{{ .Title }}</h1>
+    <p>Halaman {{ if eq .Mode "edit" }}edit{{ else }}tambah{{ end }} Ruangan</p>
+</header>
+{{ embed "partials/room-form-partial.tmpl" . }}
